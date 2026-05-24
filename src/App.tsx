@@ -224,12 +224,10 @@ const Avatar: React.FC = () => {
       {/* Avatar Image */}
       <div className="relative w-full h-full">
         <img
-          src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+          src="/Hero image.png"
           alt="Manas Kapoor"
-          className="w-full h-full object-cover rounded-full"
-          style={{
-            backgroundColor: '#0C0C0C',
-          }}
+          className="w-full h-full object-cover"
+          style={{ objectPosition: 'center' }}
         />
         
         {/* Eye Gaze Animation - Left Eye */}
@@ -258,7 +256,7 @@ const Avatar: React.FC = () => {
 
         {/* Floating Animation */}
         <motion.div
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0"
           animate={{ y: [0, -20, 0] }}
           transition={{ duration: 4, repeat: Infinity }}
         />
