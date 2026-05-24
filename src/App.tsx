@@ -38,12 +38,55 @@ const useScrollProgress = () => {
   return progress;
 };
 
+const useEyeGaze = (elementRef: React.RefObject<HTMLDivElement>) => {
+  const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!elementRef.current) return;
+
+      const element = elementRef.current;
+      const elementRect = element.getBoundingClientRect();
+      const elementCenterX = elementRect.left + elementRect.width / 2;
+      const elementCenterY = elementRect.top + elementRect.height / 2;
+
+      const angle = Math.atan2(e.clientY - elementCenterY, e.clientX - elementCenterX);
+
+      setEyePosition({
+        x: Math.cos(angle) * 10,
+        y: Math.sin(angle) * 10,
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [elementRef]);
+
+  return eyePosition;
+};
+
 // ==================== COMPONENTS ====================
 
 const CustomCursor: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const mousePosition = useMouse();
   const cursorRef = useRef<HTMLDivElement>(null);
+  const [smoothPosition, setSmoothPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const smoothMouse = () => {
+      setSmoothPosition((prev) => ({
+        x: prev.x + (mousePosition.x - prev.x) * 0.2,
+        y: prev.y + (mousePosition.y - prev.y) * 0.2,
+      }));
+      animationFrameId = requestAnimationFrame(smoothMouse);
+    };
+
+    animationFrameId = requestAnimationFrame(smoothMouse);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [mousePosition]);
 
   useEffect(() => {
     const handleMouseEnter = () => setIsHovering(true);
@@ -70,8 +113,8 @@ const CustomCursor: React.FC = () => {
           isHovering ? 'w-8 h-8 bg-[#BBCCD7] opacity-60' : 'bg-[#646973] opacity-40'
         }`}
         style={{
-          left: mousePosition.x - 8,
-          top: mousePosition.y - 8,
+          left: smoothPosition.x - 8,
+          top: smoothPosition.y - 8,
         }}
         ref={cursorRef}
       />
@@ -171,6 +214,62 @@ const GradientText: React.FC<{ children: React.ReactNode; className?: string }> 
   <span className={`gradient-text ${className}`}>{children}</span>
 );
 
+// Avatar Component with Eye Gaze
+const Avatar: React.FC = () => {
+  const avatarRef = useRef<HTMLDivElement>(null);
+  const eyePosition = useEyeGaze(avatarRef);
+
+  return (
+    <div ref={avatarRef} className="relative w-64 h-80 flex items-center justify-center">
+      {/* Avatar Image */}
+      <div className="relative w-full h-full">
+        <img
+          src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+          alt="Manas Kapoor"
+          className="w-full h-full object-cover rounded-full"
+          style={{
+            backgroundColor: '#0C0C0C',
+          }}
+        />
+        
+        {/* Eye Gaze Animation - Left Eye */}
+        <motion.div
+          className="absolute top-1/3 left-1/4 w-6 h-6 bg-white rounded-full overflow-hidden"
+          animate={{
+            x: eyePosition.x,
+            y: eyePosition.y,
+          }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        >
+          <div className="w-full h-full bg-gradient-to-br from-amber-900 to-black rounded-full" />
+        </motion.div>
+
+        {/* Eye Gaze Animation - Right Eye */}
+        <motion.div
+          className="absolute top-1/3 right-1/4 w-6 h-6 bg-white rounded-full overflow-hidden"
+          animate={{
+            x: eyePosition.x,
+            y: eyePosition.y,
+          }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        >
+          <div className="w-full h-full bg-gradient-to-br from-amber-900 to-black rounded-full" />
+        </motion.div>
+
+        {/* Floating Animation */}
+        <motion.div
+          className="absolute inset-0 rounded-full"
+          animate={{ y: [0, -20, 0] }}
+          transition={{ duration: 4, repeat: Infinity }}
+        />
+      </div>
+
+      {/* Glow Effect */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#BBCCD7]/20 to-[#646973]/20 blur-3xl opacity-50" />
+    </div>
+  );
+};
+
 const Hero: React.FC = () => {
   return (
     <section id="hero" className="min-h-screen w-full flex flex-col items-center justify-center px-6 pt-20 relative overflow-hidden">
@@ -183,48 +282,60 @@ const Hero: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
-        className="text-center max-w-4xl"
+        className="flex flex-col md:flex-row items-center justify-center gap-12 max-w-6xl"
       >
-        <motion.h1
-          className="text-7xl md:text-8xl font-bold font-kanit leading-tight mb-6 gradient-text"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-        >
-          Hi, I'm <span className="text-white">Manas</span>
-        </motion.h1>
-
-        <motion.p
-          className="text-lg md:text-2xl font-kanit font-light text-gray-300 mb-12 leading-relaxed"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+        {/* Avatar */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.4 }}
         >
-          Fintech-focused developer and digital creator building high-performance web experiences that
-          actually stand out.
-        </motion.p>
-
-        <motion.div
-          className="flex flex-col sm:flex-row gap-6 justify-center items-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-8 py-4 bg-gradient-to-r from-[#646973] to-[#BBCCD7] text-black font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:shadow-[0_0_30px_rgba(187,204,215,0.4)]"
-          >
-            Contact Me
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="px-8 py-4 border border-[#BBCCD7] text-[#BBCCD7] font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:bg-[#BBCCD7]/10"
-          >
-            View Projects
-          </motion.button>
+          <Avatar />
         </motion.div>
+
+        {/* Text Content */}
+        <div className="text-center md:text-left max-w-2xl">
+          <motion.h1
+            className="text-6xl md:text-7xl font-bold font-kanit leading-tight mb-6 gradient-text"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            Hi, I'm <span className="text-white">Manas</span>
+          </motion.h1>
+
+          <motion.p
+            className="text-lg md:text-2xl font-kanit font-light text-gray-300 mb-12 leading-relaxed"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            Fintech-focused developer and digital creator building high-performance web experiences that
+            actually stand out.
+          </motion.p>
+
+          <motion.div
+            className="flex flex-col sm:flex-row gap-6 justify-center md:justify-start items-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 bg-gradient-to-r from-[#646973] to-[#BBCCD7] text-black font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:shadow-[0_0_30px_rgba(187,204,215,0.4)] interactive"
+            >
+              Contact Me
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-8 py-4 border border-[#BBCCD7] text-[#BBCCD7] font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:bg-[#BBCCD7]/10 interactive"
+            >
+              View Projects
+            </motion.button>
+          </motion.div>
+        </div>
       </motion.div>
 
       <motion.div
@@ -239,12 +350,12 @@ const Hero: React.FC = () => {
 };
 
 const Marquee: React.FC = () => {
-  const projects = [
-    'Fintech Dashboard',
-    'AI Expense Tracker',
-    'Interactive 3D Landing',
-    'Trading Journal App',
-    'Startup Branding System',
+  const showcase = [
+    'Shatranj.com',
+    'Travel SaaS Platform',
+    'Amazon Dashboard',
+    'AI Integration',
+    'Real-time Multiplayer',
   ];
 
   return (
@@ -254,13 +365,13 @@ const Marquee: React.FC = () => {
         animate={{ x: [0, -1500] }}
         transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
       >
-        {[...projects, ...projects].map((project, i) => (
+        {[...showcase, ...showcase].map((item, i) => (
           <motion.div
             key={i}
             className="px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg text-lg font-kanit text-[#BBCCD7] flex-shrink-0 hover:bg-white/10 transition-colors"
             whileHover={{ y: -5 }}
           >
-            {project}
+            {item}
           </motion.div>
         ))}
       </motion.div>
@@ -286,7 +397,7 @@ const About: React.FC = () => {
         </p>
         <div className="grid grid-cols-3 gap-8 mt-16">
           {[
-            { label: 'Projects', value: '15+' },
+            { label: 'Projects', value: '3+' },
             { label: 'Clients', value: '8+' },
             { label: 'Years Coding', value: '3' },
           ].map((item, i) => (
@@ -434,7 +545,7 @@ const Skills: React.FC = () => {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               whileHover={{ scale: 1.1, y: -5 }}
-              className="px-6 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg text-center font-kanit font-medium text-[#BBCCD7] hover:bg-white/10 hover:border-[#BBCCD7]/50 transition-all cursor-pointer"
+              className="px-6 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg text-center font-kanit font-medium text-[#BBCCD7] hover:bg-white/10 hover:border-[#BBCCD7]/50 transition-all cursor-pointer interactive"
             >
               {skill}
             </motion.div>
@@ -447,11 +558,27 @@ const Skills: React.FC = () => {
 
 const Projects: React.FC = () => {
   const projects = [
-    { title: 'Fintech Dashboard', category: 'Web Development', color: 'from-blue-500' },
-    { title: 'AI Expense Tracker', category: 'Full Stack', color: 'from-purple-500' },
-    { title: 'Interactive 3D Landing', category: 'Creative', color: 'from-pink-500' },
-    { title: 'Trading Journal App', category: 'Fintech', color: 'from-green-500' },
-    { title: 'Startup Branding System', category: 'Design', color: 'from-orange-500' },
+    {
+      title: 'Shatranj.com',
+      description: 'A Game of Rich - Real-time multiplayer chess platform',
+      category: 'Gaming Platform',
+      color: 'from-yellow-500',
+      features: ['Real-time Multiplayer', 'AI Opponents', 'Global Leaderboards'],
+    },
+    {
+      title: 'Travel SaaS Platform',
+      description: 'Connect travelers and agents seamlessly with AI integration',
+      category: 'SaaS',
+      color: 'from-blue-500',
+      features: ['AI Recommendations', 'Agent Network', 'Real-time Booking'],
+    },
+    {
+      title: 'Amazon Dashboard',
+      description: 'Full-featured Amazon replica with complete UI dashboard',
+      category: 'E-commerce',
+      color: 'from-orange-500',
+      features: ['Product Catalog', 'Admin Dashboard', 'Order Management'],
+    },
   ];
 
   return (
@@ -462,7 +589,7 @@ const Projects: React.FC = () => {
           whileInView={{ opacity: 1 }}
           className="text-5xl md:text-7xl font-bold font-kanit leading-tight mb-16"
         >
-          Projects
+          Featured Projects
         </motion.h2>
 
         <div className="space-y-12">
@@ -477,18 +604,26 @@ const Projects: React.FC = () => {
               <div className={`absolute inset-0 bg-gradient-to-r ${project.color} to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-500`} />
               <div className="p-8 md:p-12 border border-white/10 rounded-2xl group-hover:border-white/20 transition-all">
                 <div className="flex items-start justify-between mb-6">
-                  <div>
+                  <div className="flex-1">
                     <span className="text-6xl font-bold text-white/10 font-kanit">
                       {String(i + 1).padStart(2, '0')}
                     </span>
                     <h3 className="text-3xl md:text-4xl font-bold font-kanit mt-4 mb-2">
                       {project.title}
                     </h3>
-                    <p className="text-[#BBCCD7] text-sm">{project.category}</p>
+                    <p className="text-[#BBCCD7] text-sm mb-4">{project.category}</p>
+                    <p className="text-gray-300 text-lg mb-6">{project.description}</p>
+                    <div className="flex flex-wrap gap-3">
+                      {project.features.map((feature, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs text-[#BBCCD7]">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 45 }}
-                    className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white interactive"
+                    className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white interactive flex-shrink-0 ml-4"
                   >
                     →
                   </motion.button>
@@ -582,25 +717,10 @@ const Contact: React.FC = () => {
 
 export default function App() {
   useEffect(() => {
-    // Lenis smooth scrolling initialization (optional)
-    try {
-      const Lenis = (window as any).Lenis;
-      if (Lenis) {
-        const lenis = new Lenis({
-          lerp: 0.1,
-          smoothWheel: true,
-        });
-
-        function raf(time: number) {
-          lenis.raf(time);
-          requestAnimationFrame(raf);
-        }
-
-        requestAnimationFrame(raf);
-      }
-    } catch (e) {
-      console.log('Lenis not available, using native scrolling');
-    }
+    document.body.style.cursor = 'none';
+    return () => {
+      document.body.style.cursor = 'auto';
+    };
   }, []);
 
   return (
