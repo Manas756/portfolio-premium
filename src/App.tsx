@@ -38,8 +38,8 @@ const useScrollProgress = () => {
   return progress;
 };
 
-const useEyeGaze = (elementRef: React.RefObject<HTMLDivElement>) => {
-  const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
+const use3DTilt = (elementRef: React.RefObject<HTMLDivElement>) => {
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -50,11 +50,12 @@ const useEyeGaze = (elementRef: React.RefObject<HTMLDivElement>) => {
       const elementCenterX = elementRect.left + elementRect.width / 2;
       const elementCenterY = elementRect.top + elementRect.height / 2;
 
-      const angle = Math.atan2(e.clientY - elementCenterY, e.clientX - elementCenterX);
+      const rotateX = (e.clientY - elementCenterY) / 10;
+      const rotateY = (e.clientX - elementCenterX) / 10;
 
-      setEyePosition({
-        x: Math.cos(angle) * 10,
-        y: Math.sin(angle) * 10,
+      setTilt({
+        x: -rotateX,
+        y: rotateY,
       });
     };
 
@@ -62,7 +63,7 @@ const useEyeGaze = (elementRef: React.RefObject<HTMLDivElement>) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [elementRef]);
 
-  return eyePosition;
+  return tilt;
 };
 
 // ==================== COMPONENTS ====================
@@ -70,7 +71,6 @@ const useEyeGaze = (elementRef: React.RefObject<HTMLDivElement>) => {
 const CustomCursor: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const mousePosition = useMouse();
-  const cursorRef = useRef<HTMLDivElement>(null);
   const [smoothPosition, setSmoothPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -78,8 +78,8 @@ const CustomCursor: React.FC = () => {
 
     const smoothMouse = () => {
       setSmoothPosition((prev) => ({
-        x: prev.x + (mousePosition.x - prev.x) * 0.2,
-        y: prev.y + (mousePosition.y - prev.y) * 0.2,
+        x: prev.x + (mousePosition.x - prev.x) * 0.15,
+        y: prev.y + (mousePosition.y - prev.y) * 0.15,
       }));
       animationFrameId = requestAnimationFrame(smoothMouse);
     };
@@ -109,20 +109,20 @@ const CustomCursor: React.FC = () => {
   return (
     <>
       <div
-        className={`fixed w-4 h-4 rounded-full pointer-events-none z-50 mix-blend-add transition-all duration-200 ${
-          isHovering ? 'w-8 h-8 bg-[#BBCCD7] opacity-60' : 'bg-[#646973] opacity-40'
+        className={`fixed w-4 h-4 rounded-full pointer-events-none z-50 mix-blend-screen transition-all duration-100 ${
+          isHovering ? 'w-8 h-8 bg-[#BBCCD7] opacity-70' : 'bg-[#646973] opacity-50'
         }`}
         style={{
           left: smoothPosition.x - 8,
           top: smoothPosition.y - 8,
+          boxShadow: isHovering ? '0 0 20px rgba(187, 204, 215, 0.6)' : 'none',
         }}
-        ref={cursorRef}
       />
       <div
-        className="fixed w-1 h-1 rounded-full pointer-events-none z-40 bg-[#BBCCD7] opacity-100"
+        className="fixed w-1.5 h-1.5 rounded-full pointer-events-none z-40 bg-[#BBCCD7] opacity-100"
         style={{
-          left: mousePosition.x,
-          top: mousePosition.y,
+          left: mousePosition.x - 0.75,
+          top: mousePosition.y - 0.75,
         }}
       />
     </>
@@ -214,57 +214,44 @@ const GradientText: React.FC<{ children: React.ReactNode; className?: string }> 
   <span className={`gradient-text ${className}`}>{children}</span>
 );
 
-// Avatar Component with Eye Gaze
+// Avatar with 3D Tilt Effect
 const Avatar: React.FC = () => {
   const avatarRef = useRef<HTMLDivElement>(null);
-  const eyePosition = useEyeGaze(avatarRef);
+  const tilt = use3DTilt(avatarRef);
 
   return (
-    <div ref={avatarRef} className="relative w-64 h-80 flex items-center justify-center">
-      {/* Avatar Image */}
-      <div className="relative w-full h-full">
+    <motion.div
+      ref={avatarRef}
+      className="relative w-80 h-96 flex items-center justify-center flex-shrink-0"
+      animate={{
+        rotateX: tilt.x,
+        rotateY: tilt.y,
+      }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      style={{ perspective: '1200px' }}
+    >
+      {/* Glow Effect Background */}
+      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-[#BBCCD7]/30 to-[#646973]/10 blur-3xl opacity-60" />
+
+      {/* Avatar Image with Floating Animation */}
+      <motion.div
+        className="absolute inset-4 rounded-3xl overflow-hidden shadow-2xl"
+        animate={{ y: [0, -15, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      >
         <img
           src="/Hero image.png"
           alt="Manas Kapoor"
           className="w-full h-full object-cover"
-          style={{ objectPosition: 'center' }}
-        />
-        
-        {/* Eye Gaze Animation - Left Eye */}
-        <motion.div
-          className="absolute top-1/3 left-1/4 w-6 h-6 bg-white rounded-full overflow-hidden"
-          animate={{
-            x: eyePosition.x,
-            y: eyePosition.y,
+          style={{
+            objectPosition: 'center',
           }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        >
-          <div className="w-full h-full bg-gradient-to-br from-amber-900 to-black rounded-full" />
-        </motion.div>
-
-        {/* Eye Gaze Animation - Right Eye */}
-        <motion.div
-          className="absolute top-1/3 right-1/4 w-6 h-6 bg-white rounded-full overflow-hidden"
-          animate={{
-            x: eyePosition.x,
-            y: eyePosition.y,
-          }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        >
-          <div className="w-full h-full bg-gradient-to-br from-amber-900 to-black rounded-full" />
-        </motion.div>
-
-        {/* Floating Animation */}
-        <motion.div
-          className="absolute inset-0"
-          animate={{ y: [0, -20, 0] }}
-          transition={{ duration: 4, repeat: Infinity }}
         />
-      </div>
+      </motion.div>
 
-      {/* Glow Effect */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#BBCCD7]/20 to-[#646973]/20 blur-3xl opacity-50" />
-    </div>
+      {/* Shine Effect Overlay */}
+      <div className="absolute inset-4 rounded-3xl bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+    </motion.div>
   );
 };
 
@@ -273,62 +260,72 @@ const Hero: React.FC = () => {
     <section id="hero" className="min-h-screen w-full flex flex-col items-center justify-center px-6 pt-20 relative overflow-hidden">
       {/* Animated background glow */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-[#BBCCD7]/20 to-[#646973]/20 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-gradient-to-r from-[#BBCCD7]/20 to-[#646973]/20 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-gradient-to-r from-[#646973]/20 to-[#BBCCD7]/10 rounded-full blur-3xl opacity-20 animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="flex flex-col md:flex-row items-center justify-center gap-12 max-w-6xl"
+        transition={{ duration: 0.8 }}
+        className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16 max-w-7xl relative z-10"
       >
-        {/* Avatar */}
+        {/* Avatar - Positioned as backdrop */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="relative w-80 h-96 lg:absolute lg:right-0 lg:opacity-40 lg:scale-150"
         >
           <Avatar />
         </motion.div>
 
-        {/* Text Content */}
-        <div className="text-center md:text-left max-w-2xl">
+        {/* Text Content - Layered on top */}
+        <div className="text-center lg:text-left max-w-2xl z-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+          >
+            <p className="text-lg font-kanit font-light text-[#BBCCD7] mb-4">Welcome to my portfolio</p>
+          </motion.div>
+
           <motion.h1
-            className="text-6xl md:text-7xl font-bold font-kanit leading-tight mb-6 gradient-text"
+            className="text-7xl md:text-8xl font-bold font-kanit leading-tight mb-6 gradient-text"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
           >
-            Hi, I'm <span className="text-white">Manas</span>
+            Hi, I'm <span className="text-white block">Manas</span>
           </motion.h1>
 
           <motion.p
             className="text-lg md:text-2xl font-kanit font-light text-gray-300 mb-12 leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
           >
             Fintech-focused developer and digital creator building high-performance web experiences that
             actually stand out.
           </motion.p>
 
           <motion.div
-            className="flex flex-col sm:flex-row gap-6 justify-center md:justify-start items-center"
+            className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
           >
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(187, 204, 215, 0.5)' }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-gradient-to-r from-[#646973] to-[#BBCCD7] text-black font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:shadow-[0_0_30px_rgba(187,204,215,0.4)] interactive"
+              className="px-8 py-4 bg-gradient-to-r from-[#646973] to-[#BBCCD7] text-black font-bold rounded-lg font-kanit text-lg transition-all duration-300 interactive"
             >
               Contact Me
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, backgroundColor: 'rgba(187, 204, 215, 0.1)' }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 border border-[#BBCCD7] text-[#BBCCD7] font-bold rounded-lg font-kanit text-lg transition-all duration-300 hover:bg-[#BBCCD7]/10 interactive"
+              className="px-8 py-4 border border-[#BBCCD7] text-[#BBCCD7] font-bold rounded-lg font-kanit text-lg transition-all duration-300 interactive"
             >
               View Projects
             </motion.button>
@@ -337,7 +334,7 @@ const Hero: React.FC = () => {
       </motion.div>
 
       <motion.div
-        animate={{ y: [0, 20, 0] }}
+        animate={{ y: [0, 15, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
         className="absolute bottom-10 left-1/2 -translate-x-1/2"
       >
@@ -562,6 +559,7 @@ const Projects: React.FC = () => {
       category: 'Gaming Platform',
       color: 'from-yellow-500',
       features: ['Real-time Multiplayer', 'AI Opponents', 'Global Leaderboards'],
+      image: '/shatranj.png',
     },
     {
       title: 'Travel SaaS Platform',
@@ -569,6 +567,7 @@ const Projects: React.FC = () => {
       category: 'SaaS',
       color: 'from-blue-500',
       features: ['AI Recommendations', 'Agent Network', 'Real-time Booking'],
+      image: '/travel-saas.png',
     },
     {
       title: 'Amazon Dashboard',
@@ -576,6 +575,7 @@ const Projects: React.FC = () => {
       category: 'E-commerce',
       color: 'from-orange-500',
       features: ['Product Catalog', 'Admin Dashboard', 'Order Management'],
+      image: '/amazon-dashboard.png',
     },
   ];
 
@@ -611,7 +611,7 @@ const Projects: React.FC = () => {
                     </h3>
                     <p className="text-[#BBCCD7] text-sm mb-4">{project.category}</p>
                     <p className="text-gray-300 text-lg mb-6">{project.description}</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-3 mb-6">
                       {project.features.map((feature, idx) => (
                         <span key={idx} className="px-3 py-1 bg-white/10 border border-white/20 rounded-full text-xs text-[#BBCCD7]">
                           {feature}
@@ -626,7 +626,21 @@ const Projects: React.FC = () => {
                     →
                   </motion.button>
                 </div>
-                <div className="h-48 md:h-64 bg-gradient-to-br from-white/5 to-white/10 rounded-xl group-hover:from-white/10 group-hover:to-white/15 transition-all" />
+                
+                {/* Project Image */}
+                <motion.div
+                  className="h-48 md:h-64 bg-gradient-to-br from-white/5 to-white/10 rounded-xl group-hover:from-white/10 group-hover:to-white/15 transition-all overflow-hidden"
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <img
+                    src={project.image}
+                    alt={project.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </motion.div>
               </div>
             </motion.div>
           ))}
